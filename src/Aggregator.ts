@@ -96,11 +96,16 @@ export class Aggregator {
             }
 
             if (mode === "merge") {
-                const finalReplacement = _.merge(_.get(data, path), enrichmentData);
-                _.set(data as any, path, finalReplacement);
+                if (path.length > 0){
+                    const finalReplacement = _.merge(_.get(data, path), enrichmentData);
+                    _.set(data as any, path, finalReplacement);
+                } else {
+                    // If path is empty, we are dealing with a single object
+                    data = _.merge(data, enrichmentData);
+                }
             } else if (mode === "toKey") {
                 const targetKey = enrichmentConfig.toKey!;
-                _.set(data as any, path + "." + targetKey, enrichmentData);
+                _.set(data as any, joinPath(path, targetKey), enrichmentData);
             }
 
             if (removeKey && idKey) {
@@ -111,10 +116,15 @@ export class Aggregator {
     }
 }
 
+
 type PathValuePair = { path: string; value: string };
 
 function collectPathsAndValues(obj: any, path: string): PathValuePair[] {
-    return _.flattenDeep(_collectPathsAndValues(obj, path) as any);
+    let collectedPaths = _collectPathsAndValues(obj, path);
+    if (!_.isArray(collectedPaths)){
+        collectedPaths = [collectedPaths];
+    }
+    return _.flattenDeep(collectedPaths);
 }
 
 function _collectPathsAndValues(obj: any, path: string, cumulatedPath: string = "") {
@@ -126,15 +136,20 @@ function _collectPathsAndValues(obj: any, path: string, cumulatedPath: string = 
     if (key === "*") {
         return _collectPathsAndValues(obj, restPath, cumulatedPath);
     }
+    const nextPath = joinPath(cumulatedPath, key);
     if (restPath.split(".").length === 1) {
         return {
-            path: `${cumulatedPath}.${key}`,
+            path: nextPath,
             value: obj[key],
         };
     }
-    let nextCumulatedPath = `${cumulatedPath}.${key}`;
-    if (nextCumulatedPath.startsWith(".")) {
-        nextCumulatedPath = nextCumulatedPath.substring(1);
+
+    return _collectPathsAndValues(obj[key], restPath, nextPath);
+}
+
+function joinPath(base: string, key: string): string{
+    if (base.length === 0){
+        return key;
     }
-    return _collectPathsAndValues(obj[key], restPath, nextCumulatedPath);
+    return `${base}.${key}`;
 }
