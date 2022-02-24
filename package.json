@@ -1,0 +1,34 @@
+{
+  "name": "@necrobits/aggregator",
+  "version": "0.1.0",
+  "description": "Typescript/Javascript aggregator component",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/necrobits/aggregator.js.git"
+  },
+  "keywords": [
+    "aggregator"
+  ],
+  "author": "Phuc Tran",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/necrobits/aggregator.js/issues"
+  },
+  "homepage": "https://github.com/necrobits/aggregator.js#readme",
+  "dependencies": {
+    "lodash": "^4.17.21"
+  },
+  "devDependencies": {
+    "typescript": "^4.5.5"
+  }
+}
