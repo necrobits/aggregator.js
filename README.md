@@ -68,9 +68,9 @@ const opts = {
         removeIdKey: true
     }
 }
-const aggregated = await aggregator.aggregate(data, opts);
+const aggregatedData = await aggregator.aggregate(data, opts);
 
-console.log(data)
+console.log(aggregatedData)
 ```
 Output:
 ```javascript
