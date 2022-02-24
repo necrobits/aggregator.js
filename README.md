@@ -99,5 +99,42 @@ Output:
 
 ```
 
+## Using cache
+You can implement an adapter that implements the `EntityCache` interface to use cache in `CachedEntitySource`.
+
+This is an example for `node-cache`. You can also use Typescript if you want to.
+```typescript
+export class NodeCacheAdapter<T> implements EntityCache<T> {
+    constructor(private nodeCache: NodeCache) {}
+    
+    async invalidate(keys: string[]): Promise<void> {
+        this.nodeCache.del(keys);
+        return;
+    }
+
+    async get(key: string): Promise<T> {
+        return this.nodeCache.get(key);
+    }
+
+    async setBatch(batch: { key: string; value: any }[]): Promise<void> {
+        this.nodeCache.mset(
+            batch.map((b) => ({
+                key: b.key,
+                val: b.value,
+            }))
+        );
+    }
+}
+```
+
+```typescript
+const cache = new NodeCache();
+const userSource = new CachedEntitySource<User>("user",{
+    cache: new NodeCacheAdapter<User>(cache);
+    lookupUsing: findUsers,
+    entityIdBy: "id"
+});
+```
+
 ## License
 MIT
