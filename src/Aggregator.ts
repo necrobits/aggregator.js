@@ -48,16 +48,23 @@ export class Aggregator {
         // Collect all ids to be gathered and populated
         // The paths are sorted by length, so that the shortest paths are processed first
         const sourceToIdsMap = {};
-        const pathToEnrichmentConfigMap: { [path: string]: SingleEnrichmentConfig } = {};
-        const sortedPaths = _.sortBy(Object.keys(options), (path) => path.split(".").length);
+        const pathToEnrichmentConfigMap: { [path: string]: SingleEnrichmentConfig[] } = {};
         
+        const sortedPaths = _.sortBy(Object.keys(options), (path) => path.split(".").length);
+
         // Scan through all the options and the data to find the IDs to be gathered
         for (const path of sortedPaths) {
             const pathOption = options[path];
             const sourceName = pathOption.source;
+            let realPath = path;
+            // Ignore the first '*.'
+            if (realPath.startsWith("*.")) {
+                realPath = realPath.substring(2);
+            }
+
             // Collect the IDs to be gathered and add them to the existing IDs list
             const existingIds = _.get(sourceToIdsMap, sourceName, []);
-            const collectedPathAndIds = collectPathsAndValues(data, path);
+            const collectedPathAndIds = collectPathsAndValues(data, realPath);
             const collectedIds = _.uniq(_.map(collectedPathAndIds, "value"));
             sourceToIdsMap[sourceName] = _.uniq(existingIds.concat(collectedIds));
 
@@ -66,11 +73,14 @@ export class Aggregator {
             for (const pathAndId of collectedPathAndIds) {
                 const id = pathAndId.value;
                 let concretePath = _.dropRight(pathAndId.path.split(".")).join(".");
-                pathToEnrichmentConfigMap[concretePath] = {
+                const enrichmentConfig = {
                     id,
                     idKeyPath: pathAndId.path,
                     ...pathOption,
-                };
+                }
+                const existingConfigs = pathToEnrichmentConfigMap[concretePath] || [];
+                existingConfigs.push(enrichmentConfig);
+                pathToEnrichmentConfigMap[concretePath] = existingConfigs;
             }
         }
 
@@ -87,29 +97,31 @@ export class Aggregator {
         // Enrich the data
         // Iterate over the paths and inject the enrichments to the desired place
         for (const path of _.keys(pathToEnrichmentConfigMap)) {
-            const enrichmentConfig = pathToEnrichmentConfigMap[path];
-            const { id, mode, source: sourceName, removeIdKey: removeKey, idKeyPath: idKey, transform } = enrichmentConfig;
-            let enrichmentData = await this.sources.get(sourceName).get(id);
-            // Transform the data if the transform function is provided
-            if (transform && _.isFunction(transform)) {
-                enrichmentData = transform(enrichmentData);
-            }
-
-            if (mode === "merge") {
-                if (path.length > 0){
-                    const finalReplacement = _.merge(_.get(data, path), enrichmentData);
-                    _.set(data as any, path, finalReplacement);
-                } else {
-                    // If path is empty, we are dealing with a single object
-                    data = _.merge(data, enrichmentData);
+            const enrichmentConfigs = pathToEnrichmentConfigMap[path];
+            for (const enrichmentConfig of enrichmentConfigs){
+                const { id, mode, source: sourceName, removeIdKey: removeKey, idKeyPath: idKey, transform } = enrichmentConfig;
+                let enrichmentData = await this.sources.get(sourceName).get(id);
+                // Transform the data if the transform function is provided
+                if (transform && _.isFunction(transform)) {
+                    enrichmentData = transform(enrichmentData);
                 }
-            } else if (mode === "toKey") {
-                const targetKey = enrichmentConfig.toKey!;
-                _.set(data as any, joinPath(path, targetKey), enrichmentData);
-            }
 
-            if (removeKey && idKey) {
-                _.unset(data, idKey);
+                if (mode === "merge") {
+                    if (path.length > 0){
+                        const finalReplacement = _.merge(_.get(data, path), enrichmentData);
+                        _.set(data as any, path, finalReplacement);
+                    } else {
+                        // If path is empty, we are dealing with a single object
+                        data = _.merge(data, enrichmentData);
+                    }
+                } else if (mode === "toKey") {
+                    const targetKey = enrichmentConfig.toKey!;
+                    _.set(data as any, joinPath(path, targetKey), enrichmentData);
+                }
+
+                if (removeKey && idKey) {
+                    _.unset(data, idKey);
+                }
             }
         }
         return data;
