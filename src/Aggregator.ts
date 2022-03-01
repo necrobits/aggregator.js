@@ -86,10 +86,13 @@ export class Aggregator {
 
         // Initiate the preparation process. This will make sure that the data is ready to be used.
         // All the entity sources should be prepared before the aggregation process.
-        const preparePromises = [];
+        const preparePromises: Promise<any>[] = [];
         for (const sourceName of entitySourceNames) {
             const ids = sourceToIdsMap[sourceName];
-            const promise = this.sources.get(sourceName).prepare(ids);
+            if (!this.sources.has(sourceName)) {
+                throw new Error(`Entity source ${sourceName} is not registered.`);
+            }
+            const promise = this.sources.get(sourceName)!.prepare(ids);
             preparePromises.push(promise);
         }
         await Promise.all(preparePromises);
@@ -100,7 +103,7 @@ export class Aggregator {
             const enrichmentConfigs = pathToEnrichmentConfigMap[path];
             for (const enrichmentConfig of enrichmentConfigs){
                 const { id, mode, source: sourceName, removeIdKey: removeKey, idKeyPath: idKey, transform } = enrichmentConfig;
-                let enrichmentData = await this.sources.get(sourceName).get(id);
+                let enrichmentData = await this.sources.get(sourceName)!.get(id);
                 // Transform the data if the transform function is provided
                 if (transform && _.isFunction(transform)) {
                     enrichmentData = transform(enrichmentData);

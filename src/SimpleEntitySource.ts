@@ -50,7 +50,7 @@ export class SimpleEntitySource<T, TResult = T> implements EntitySource<T, TResu
 
     async get(id: string): Promise<TResult> {
         const entityFromCache = await this.memory.get(id);
-        return entityFromCache;
+        return entityFromCache!;
     }
 
     private getElementId(element: T): string {
