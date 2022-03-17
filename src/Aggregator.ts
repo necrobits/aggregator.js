@@ -12,10 +12,10 @@ import { AggregationConfiguration, EntitySource, SingleEnrichmentConfig } from "
  */
 export class Aggregator {
     private sources: Map<string, EntitySource> = new Map();
-    
-    constructor(sources?: Record<string, EntitySource>){
-        if (sources){
-            for (const sourceName in sources){
+
+    constructor(sources?: Record<string, EntitySource>) {
+        if (sources) {
+            for (const sourceName in sources) {
                 this.register(sourceName, sources[sourceName]);
             }
         }
@@ -49,7 +49,7 @@ export class Aggregator {
         // The paths are sorted by length, so that the shortest paths are processed first
         const sourceToIdsMap = {};
         const pathToEnrichmentConfigMap: { [path: string]: SingleEnrichmentConfig[] } = {};
-        
+
         const sortedPaths = _.sortBy(Object.keys(options), (path) => path.split(".").length);
 
         // Scan through all the options and the data to find the IDs to be gathered
@@ -101,7 +101,7 @@ export class Aggregator {
         // Iterate over the paths and inject the enrichments to the desired place
         for (const path of _.keys(pathToEnrichmentConfigMap)) {
             const enrichmentConfigs = pathToEnrichmentConfigMap[path];
-            for (const enrichmentConfig of enrichmentConfigs){
+            for (const enrichmentConfig of enrichmentConfigs) {
                 const { id, mode, source: sourceName, removeIdKey: removeKey, idKeyPath: idKey, transform } = enrichmentConfig;
                 let enrichmentData = await this.sources.get(sourceName)!.get(id);
                 // Transform the data if the transform function is provided
@@ -110,7 +110,7 @@ export class Aggregator {
                 }
 
                 if (mode === "merge") {
-                    if (path.length > 0){
+                    if (path.length > 0) {
                         const finalReplacement = _.merge(_.get(data, path), enrichmentData);
                         _.set(data as any, path, finalReplacement);
                     } else {
@@ -136,7 +136,7 @@ type PathValuePair = { path: string; value: string };
 
 function collectPathsAndValues(obj: any, path: string): PathValuePair[] {
     let collectedPaths = _collectPathsAndValues(obj, path);
-    if (!_.isArray(collectedPaths)){
+    if (!_.isArray(collectedPaths)) {
         collectedPaths = [collectedPaths];
     }
     return _.flattenDeep(collectedPaths);
@@ -146,24 +146,24 @@ function _collectPathsAndValues(obj: any, path: string, cumulatedPath: string = 
     if (_.isArray(obj)) {
         return obj.map((o, index) => _collectPathsAndValues(o, path, `${cumulatedPath}[${index}]`));
     }
-    let key = path.split(".")[0];
-    let restPath = path.substring(key.length + 1);
-    if (key === "*") {
+    let currentKey = path.split(".")[0];
+    let restPath = path.substring(currentKey.length + 1);
+    if (currentKey === "*") {
         return _collectPathsAndValues(obj, restPath, cumulatedPath);
     }
-    const nextPath = joinPath(cumulatedPath, key);
-    if (restPath.split(".").length === 1) {
+    const pathToCurrentKey = joinPath(cumulatedPath, currentKey);
+    if (restPath.length === 0) {
         return {
-            path: nextPath,
-            value: obj[key],
+            path: pathToCurrentKey,
+            value: obj[currentKey],
         };
     }
 
-    return _collectPathsAndValues(obj[key], restPath, nextPath);
+    return _collectPathsAndValues(obj[currentKey], restPath, pathToCurrentKey);
 }
 
-function joinPath(base: string, key: string): string{
-    if (base.length === 0){
+function joinPath(base: string, key: string): string {
+    if (base.length === 0) {
         return key;
     }
     return `${base}.${key}`;
