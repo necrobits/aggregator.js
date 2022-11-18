@@ -111,7 +111,7 @@ export class Aggregator {
 
                 if (mode === "merge") {
                     if (path.length > 0) {
-                        const finalReplacement = _.merge(_.get(data, path), enrichmentData);
+                        const finalReplacement = enrichmentData ? _.merge(_.get(data, path), enrichmentData) : null;
                         _.set(data as any, path, finalReplacement);
                     } else {
                         // If path is empty, we are dealing with a single object
