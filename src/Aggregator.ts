@@ -1,5 +1,5 @@
 import _ from "lodash";
-import { AggregationConfiguration, EntitySource, SingleEnrichmentConfig } from "./types";
+import { AggregationConfiguration, AggregationMode, EntitySource, SingleAggregationOpts, SingleEnrichmentConfig } from "./types";
 
 /**
  * Aggregator is a class that can be used to aggregate data from multiple sources.
@@ -102,14 +102,15 @@ export class Aggregator {
         for (const path of _.keys(pathToEnrichmentConfigMap)) {
             const enrichmentConfigs = pathToEnrichmentConfigMap[path];
             for (const enrichmentConfig of enrichmentConfigs) {
-                const { id, mode, source: sourceName, removeIdKey: removeKey, idKeyPath: idKey, transform } = enrichmentConfig;
+                const { id, source: sourceName, removeIdKey: removeKey, idKeyPath: idKey, transform } = enrichmentConfig;
+                const mode = getModeFromConfig(enrichmentConfig);
                 let enrichmentData = await this.sources.get(sourceName)!.get(id);
                 // Transform the data if the transform function is provided
                 if (transform && _.isFunction(transform)) {
                     enrichmentData = transform(enrichmentData);
                 }
 
-                if (mode === "merge") {
+                if (mode === AggregationMode.MERGE) {
                     if (path.length > 0) {
                         const finalReplacement = enrichmentData ? _.merge(_.get(data, path), enrichmentData) : null;
                         _.set(data as any, path, finalReplacement);
@@ -117,9 +118,16 @@ export class Aggregator {
                         // If path is empty, we are dealing with a single object
                         data = _.merge(data, enrichmentData);
                     }
-                } else if (mode === "toKey") {
-                    const targetKey = enrichmentConfig.toKey!;
-                    _.set(data as any, joinPath(path, targetKey), enrichmentData);
+                } else if (mode === AggregationMode.TO_KEY) {
+                    const targetKey = enrichmentConfig.to!.key;
+                    const omitNull = enrichmentConfig.to!.omitNull;
+                    const targetPath = joinPath(path, targetKey);
+                    // Transform all nullish to null;
+                    const finalReplacement = enrichmentData || null;
+                    _.set(data as any, joinPath(path, targetKey), enrichmentData || null);
+                    if (omitNull && finalReplacement === null) {
+                        _.unset(data as any, targetPath);
+                    }
                 }
 
                 if (removeKey && idKey) {
@@ -167,4 +175,11 @@ function joinPath(base: string, key: string): string {
         return key;
     }
     return `${base}.${key}`;
+}
+
+function getModeFromConfig(opts: SingleAggregationOpts): AggregationMode {
+    if (opts.to) {
+        return AggregationMode.TO_KEY;
+    }
+    return AggregationMode.MERGE;
 }
