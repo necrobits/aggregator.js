@@ -41,7 +41,10 @@ export class Aggregator {
      * @param options The configuation for the aggregation.
      * @returns The data with the enrichments.
      */
-    public async aggregate<TInput>(data: TInput, options: AggregationConfiguration): Promise<any> {
+    public async aggregate<TInput>(data: TInput | null, options: AggregationConfiguration): Promise<any> {
+        if (!data) {
+            return null;
+        }
         // Extract entity sources to be used from options
         const entitySourceNames = _.uniq(_.map(options, (value) => value.source));
 
@@ -64,18 +67,18 @@ export class Aggregator {
 
             // Collect the IDs to be gathered and add them to the existing IDs list
             const existingIds = _.get(sourceToIdsMap, sourceName, []);
-            const collectedPathAndIds = collectPathsAndValues(data, realPath);
-            const collectedIds = _.uniq(_.map(collectedPathAndIds, "value"));
+            const collectedPathDescriptors = collectPathsAndValues(data, realPath);
+            const collectedIds = _.uniq(_.map(collectedPathDescriptors, "value"));
             sourceToIdsMap[sourceName] = _.uniq(existingIds.concat(collectedIds));
 
             // Define the replacement and its path in the data,
             //  so that it can be replaced later
-            for (const pathAndId of collectedPathAndIds) {
-                const id = pathAndId.value;
-                let concretePath = _.dropRight(pathAndId.path.split(".")).join(".");
+            for (const pathDescriptor of collectedPathDescriptors) {
+                let concretePath = _.dropRight(pathDescriptor.path.split(".")).join(".");
                 const enrichmentConfig = {
-                    id,
-                    idKeyPath: pathAndId.path,
+                    id: pathDescriptor.value,
+                    objectAbsent: pathDescriptor.objectAbsent,
+                    idKeyPath: pathDescriptor.path,
                     ...pathOption,
                 }
                 const existingConfigs = pathToEnrichmentConfigMap[concretePath] || [];
@@ -102,21 +105,27 @@ export class Aggregator {
         for (const path of _.keys(pathToEnrichmentConfigMap)) {
             const enrichmentConfigs = pathToEnrichmentConfigMap[path];
             for (const enrichmentConfig of enrichmentConfigs) {
-                const { id, source: sourceName, removeIdKey: removeKey, idKeyPath: idKey, transform } = enrichmentConfig;
+                const { id,
+                    source: sourceName,
+                    removeIdKey: removeKey,
+                    idKeyPath: idKey,
+                    objectAbsent,
+                    transform } = enrichmentConfig;
+                if (objectAbsent) {
+                    continue;
+                }
                 const mode = getModeFromConfig(enrichmentConfig);
                 let enrichmentData = await this.sources.get(sourceName)!.get(id);
                 // Transform the data if the transform function is provided
                 if (transform && _.isFunction(transform)) {
                     enrichmentData = transform(enrichmentData);
                 }
-
                 if (mode === AggregationMode.MERGE) {
                     if (path.length > 0) {
-                        const finalReplacement = enrichmentData ? _.merge(_.get(data, path), enrichmentData) : _.get(data, path);
+                        let finalReplacement = enrichmentData ? _.merge(_.get(data, path), enrichmentData) : _.get(data, path);
                         _.set(data as any, path, finalReplacement);
                     } else {
-                        // If path is empty, we are dealing with a single object
-                        data = _.merge(data, enrichmentData);
+                        data = enrichmentData ? _.merge(data, enrichmentData) : data;
                     }
                 } else if (mode === AggregationMode.TO_KEY) {
                     const targetKey = enrichmentConfig.to!.key;
@@ -124,10 +133,12 @@ export class Aggregator {
                     const targetPath = joinPath(path, targetKey);
                     // Transform all nullish to null;
                     const finalReplacement = enrichmentData || null;
+                    //if (!objectAbsent) {
                     _.set(data as any, joinPath(path, targetKey), enrichmentData || null);
                     if (omitNull && finalReplacement === null) {
                         _.unset(data as any, targetPath);
                     }
+                    //}
                 }
 
                 if (removeKey && idKey) {
@@ -140,9 +151,9 @@ export class Aggregator {
 }
 
 
-type PathValuePair = { path: string; value: string };
+type PathDescriptor = { path: string; value: string; objectAbsent?: boolean };
 
-function collectPathsAndValues(obj: any, path: string): PathValuePair[] {
+function collectPathsAndValues(obj: any, path: string): PathDescriptor[] {
     let collectedPaths = _collectPathsAndValues(obj, path);
     if (!_.isArray(collectedPaths)) {
         collectedPaths = [collectedPaths];
@@ -160,14 +171,16 @@ function _collectPathsAndValues(obj: any, path: string, cumulatedPath: string = 
         return _collectPathsAndValues(obj, restPath, cumulatedPath);
     }
     const pathToCurrentKey = joinPath(cumulatedPath, currentKey);
+    const objValue = _.get(obj, currentKey);
     if (restPath.length === 0) {
         return {
             path: pathToCurrentKey,
-            value: obj[currentKey],
+            value: objValue,
+            objectAbsent: !obj,
         };
-    }
 
-    return _collectPathsAndValues(obj[currentKey], restPath, pathToCurrentKey);
+    }
+    return _collectPathsAndValues(objValue, restPath, pathToCurrentKey);
 }
 
 function joinPath(base: string, key: string): string {

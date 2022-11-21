@@ -30,4 +30,5 @@ export type SingleAggregationOpts = {
 export type SingleEnrichmentConfig = {
     id: string;
     idKeyPath: string;
+    objectAbsent?: boolean;
 } & SingleAggregationOpts;

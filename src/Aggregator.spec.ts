@@ -67,10 +67,15 @@ describe('Aggregate object', () => {
         expect(Object.keys(result)).toContain('assigneeId');
     })
 
-    test('When having null ID in MERGE mode: nothing will be merged into the object', async () => {
+    test('When having null ID in MERGE mode: nothing will be merged into the object, but other props must remain', async () => {
         data.taskId = null;
+        data.otherProp1 = 'A';
+        data.otherProp2 = 'B';
         const result = await aggregator.aggregate(data, opts);
         expect(Object.keys(result)).not.toContain('task');
+        expect(Object.keys(result)).toContain('otherProp1');
+        expect(Object.keys(result)).toContain('otherProp2');
+        expect(result).toHaveProperty('assignee.name', 'Andy');
     });
 
     test('When having null ID in TO_KEY mode: the key should be null', async () => {
@@ -79,6 +84,11 @@ describe('Aggregate object', () => {
         expect(Object.keys(result)).toContain('assignee');
         expect(result.assignee).toBeNull();
     });
+
+    test('When data is null: should return null back', async () => {
+        const result = await aggregator.aggregate(null, opts);
+        expect(result).toBeNull();
+    })
 });
 
 describe('Aggregating array', () => {
@@ -123,15 +133,15 @@ describe('Aggregating array', () => {
         expect(result[1].tasks[1].id).toBe('T2');
         expect(result[1].tasks[1].assignee.id).toBe('B');
     });
-    test('When having null ID in MERGE mode: should turn the target object to null', async () => {
+    test('When having null ID in MERGE mode: nothing will be merged into the object, but other props must remain', async () => {
         data[1].tasks[0].taskId = null;
         const result = await aggregator.aggregate(data, opts);
-        expect(result[1].tasks[0]).toBeNull();
+        expect(Object.keys(result[1].tasks[0])).not.toContain('task');
+        expect(Object.keys(result[1].tasks[0])).toContain('assignee');
     });
     test('When having null ID in TO_KEY mode without "omitNull" option: should create the key with value null', async () => {
         data[0].tasks[0].assigneeId = null;
         const result = await aggregator.aggregate(data, opts);
-        console.log(JSON.stringify(result, null, 2));
         expect(Object.keys(result[0].tasks[0])).toContain('assignee');
         expect(result[0].tasks[0].assignee).toBeNull();
     });
@@ -139,8 +149,14 @@ describe('Aggregating array', () => {
         data[0].tasks[0].assigneeId = null;
         opts['tasks.*.assigneeId'].to.omitNull = true;
         const result = await aggregator.aggregate(data, opts);
-        console.log(JSON.stringify(result[0].tasks[0], null, 2));
         expect(result).toHaveProperty('0.tasks.0.task', 'Study');
         expect(Object.keys(result[0].tasks[0])).not.toContain('assignee');
+    });
+
+    test('When data containing null: should return null at those positions', async () => {
+        data.push(null);
+        data.push({ date: '24-02-2022', tasks: [null] });
+        const result = await aggregator.aggregate(data, opts);
+        expect(result[2]).toBeNull();
     })
 });
