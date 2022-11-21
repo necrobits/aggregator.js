@@ -133,12 +133,10 @@ export class Aggregator {
                     const targetPath = joinPath(path, targetKey);
                     // Transform all nullish to null;
                     const finalReplacement = enrichmentData || null;
-                    //if (!objectAbsent) {
                     _.set(data as any, joinPath(path, targetKey), enrichmentData || null);
                     if (omitNull && finalReplacement === null) {
                         _.unset(data as any, targetPath);
                     }
-                    //}
                 }
 
                 if (removeKey && idKey) {
