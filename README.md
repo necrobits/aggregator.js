@@ -157,7 +157,7 @@ you can simply use `userId` directly.
 | source       | string         | Name of the entity source to gather the data          | Yes                  |                                   |
 | to           | -              | If specified, the result is put into another key      |                      |                                   |
 | to.key       | string         | The name of the new field to inject the data into     | If `to` is specified |                                   |
-| to.omitEmpty | boolean        | If the lookuped object is null, remove the key        | No                   | false                             |
+| to.omitNull  | boolean        | If the lookuped object is null, remove the key        | No                   | false                             |
 | removeIdKey  | boolean        | Remove the id field after injecting the data          | No                   | false                             |
 | transform    | (any) => (any) | A function to transform the data before the injection | No                   | Identity function<br><br>(v) => v |
 
