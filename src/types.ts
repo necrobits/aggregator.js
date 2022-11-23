@@ -11,8 +11,8 @@ export type EntityIdGetter<T> = (string & keyof T) | ((element: T) => string);
 
 export type EntityLookupFunction<T = any> = (keys: string[]) => Promise<T[]> | T[];
 
-export type AggregationConfiguration = {
-    [idPath: string]: SingleAggregationOpts;
+export type AggregationConfiguration<TLookUpSource=string> = {
+    [idPath: string]: SingleAggregationOpts<TLookUpSource>;
 };
 
 export type ToKeyModeOpts = {
@@ -20,8 +20,8 @@ export type ToKeyModeOpts = {
     omitNull?: boolean;
 }
 
-export type SingleAggregationOpts = {
-    source: string;
+export type SingleAggregationOpts<TLookUpSource> = {
+    source: string & <TLookUpSource>;
     to?: ToKeyModeOpts;
     removeIdKey?: boolean;
     transform?: (element: any) => any;
