@@ -34,6 +34,16 @@ export class Aggregator<TSourceKey extends string = string> {
     }
 
     /**
+    * Get a registered entity source by its name.
+    * If the source is not registered, it will return undefined.
+    * @param name The name of the entity source
+    * @returns the entity source instance
+    */
+    public getSource(name: TSourceKey): EntitySource | undefined {
+        return this.sources.get(name);
+    }
+
+    /**
      * Start the aggregation process and return the aggregated data.
      * Note that the data is not copied, so you should not expect the data to be the same after the aggregation.
      * 
