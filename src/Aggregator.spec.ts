@@ -23,13 +23,20 @@ const todoSource = new SimpleEntitySource("todo", {
     lookupUsing: findTodos,
     entityIdBy: "id"
 })
+
+enum Source {
+    USER = 'user',
+    TODO = 'todo'
+}
+
+const typedAggregator = new Aggregator<Source>({
+    [Source.USER]: userSource,
+    [Source.TODO]: todoSource
+})
+
 const aggregator = new Aggregator({
     user: userSource,
     todo: todoSource,
-});
-
-beforeEach(() => {
-
 });
 
 describe('Aggregate object', () => {
@@ -53,6 +60,29 @@ describe('Aggregate object', () => {
     })
     test('Happy path', async () => {
         const result = await aggregator.aggregate(data, opts);
+        expect(result.task).toBe('Study');
+        expect(result.assignee.id).toBe('A');
+        expect(result.assignee.name).toBe('Andy');
+        // Make sure the id key is removed
+        expect(Object.keys(result)).not.toContain('assigneeId');
+        expect(Object.keys(result)).not.toContain('taskId');
+    });
+
+    test('Enum as source key should work as usual', async () => {
+        const typedOpts = {
+            "assigneeId": {
+                source: Source.USER,
+                to: {
+                    key: "assignee",
+                },
+                removeIdKey: true,
+            },
+            "taskId": {
+                source: Source.TODO,
+                removeIdKey: true,
+            }
+        }
+        const result = await typedAggregator.aggregate(data, typedOpts);
         expect(result.task).toBe('Study');
         expect(result.assignee.id).toBe('A');
         expect(result.assignee.name).toBe('Andy');
@@ -89,6 +119,7 @@ describe('Aggregate object', () => {
         const result = await aggregator.aggregate(null, opts);
         expect(result).toBeNull();
     })
+
 });
 
 describe('Aggregating array', () => {

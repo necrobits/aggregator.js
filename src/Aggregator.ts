@@ -10,10 +10,10 @@ import { AggregationConfiguration, AggregationMode, EntitySource, SingleAggregat
  * An entity source must be firstly registered to the aggregator with a name using the register() method.
  * Then that name can be used to identify the source in the AggregationConfiguration.
  */
-export class Aggregator {
-    private sources: Map<string, EntitySource> = new Map();
+export class Aggregator<TSourceKey extends string = string> {
+    private sources: Map<TSourceKey, EntitySource> = new Map();
 
-    constructor(sources?: Record<string, EntitySource>) {
+    constructor(sources?: Record<TSourceKey, EntitySource>) {
         if (sources) {
             for (const sourceName in sources) {
                 this.register(sourceName, sources[sourceName]);
@@ -28,7 +28,7 @@ export class Aggregator {
      * @param source The entity source instance that implements the EntitySource interface
      * @returns 
      */
-    public register(name: string, source: EntitySource): this {
+    public register(name: TSourceKey, source: EntitySource): this {
         this.sources.set(name, source);
         return this;
     }
@@ -41,7 +41,7 @@ export class Aggregator {
      * @param options The configuation for the aggregation.
      * @returns The data with the enrichments.
      */
-    public async aggregate<TInput>(data: TInput | null, options: AggregationConfiguration): Promise<any> {
+    public async aggregate<TInput>(data: TInput | null, options: AggregationConfiguration<TSourceKey>): Promise<any> {
         if (!data) {
             return null;
         }
@@ -50,8 +50,8 @@ export class Aggregator {
 
         // Collect all ids to be gathered and populated
         // The paths are sorted by length, so that the shortest paths are processed first
-        const sourceToIdsMap = {};
-        const pathToEnrichmentConfigMap: { [path: string]: SingleEnrichmentConfig[] } = {};
+        const sourceToIds = new Map<TSourceKey, string[]>();
+        const pathToEnrichmentConfigMap: { [path: string]: SingleEnrichmentConfig<TSourceKey>[] } = {};
 
         const sortedPaths = _.sortBy(Object.keys(options), (path) => path.split(".").length);
 
@@ -66,10 +66,10 @@ export class Aggregator {
             }
 
             // Collect the IDs to be gathered and add them to the existing IDs list
-            const existingIds = _.get(sourceToIdsMap, sourceName, []);
+            const existingIds = _.get(sourceToIds, sourceName, []);
             const collectedPathDescriptors = collectPathsAndValues(data, realPath);
             const collectedIds = _.uniq(_.map(collectedPathDescriptors, "value"));
-            sourceToIdsMap[sourceName] = _.uniq(existingIds.concat(collectedIds));
+            sourceToIds.set(sourceName, _.uniq([...existingIds, ...collectedIds]));
 
             // Define the replacement and its path in the data,
             //  so that it can be replaced later
@@ -91,9 +91,12 @@ export class Aggregator {
         // All the entity sources should be prepared before the aggregation process.
         const preparePromises: Promise<any>[] = [];
         for (const sourceName of entitySourceNames) {
-            const ids = sourceToIdsMap[sourceName];
             if (!this.sources.has(sourceName)) {
                 throw new Error(`Entity source ${sourceName} is not registered.`);
+            }
+            const ids = sourceToIds.get(sourceName) || [];
+            if (ids.length === 0) {
+                continue;
             }
             const promise = this.sources.get(sourceName)!.prepare(ids);
             preparePromises.push(promise);

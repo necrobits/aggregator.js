@@ -7,12 +7,13 @@ export enum AggregationMode {
     MERGE = "merge",
     TO_KEY = "toKey",
 }
+
 export type EntityIdGetter<T> = (string & keyof T) | ((element: T) => string);
 
 export type EntityLookupFunction<T = any> = (keys: string[]) => Promise<T[]> | T[];
 
-export type AggregationConfiguration<TLookUpSource=string> = {
-    [idPath: string]: SingleAggregationOpts<TLookUpSource>;
+export type AggregationConfiguration<TSourceKey extends string = string> = {
+    [idPath: string]: SingleAggregationOpts<TSourceKey>;
 };
 
 export type ToKeyModeOpts = {
@@ -20,15 +21,15 @@ export type ToKeyModeOpts = {
     omitNull?: boolean;
 }
 
-export type SingleAggregationOpts<TLookUpSource> = {
-    source: string & <TLookUpSource>;
+export type SingleAggregationOpts<TSourceKey extends string = string> = {
+    source: TSourceKey;
     to?: ToKeyModeOpts;
     removeIdKey?: boolean;
     transform?: (element: any) => any;
 };
 
-export type SingleEnrichmentConfig = {
+export type SingleEnrichmentConfig<TSourceKey extends string> = {
     id: string;
     idKeyPath: string;
     objectAbsent?: boolean;
-} & SingleAggregationOpts;
+} & SingleAggregationOpts<TSourceKey>;
