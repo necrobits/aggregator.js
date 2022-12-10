@@ -54,18 +54,28 @@ describe('Aggregate object', () => {
             "taskId": {
                 source: "todo",
                 removeIdKey: true,
+            },
+            "childTaskId": {
+                source: "todo",
+                removeIdKey: true,
+                to: {
+                    key: "childTask",
+                }
             }
         }
-        data = { assigneeId: 'A', taskId: 'T1' };
+        data = { assigneeId: 'A', taskId: 'T1', childTaskId: 'T2' };
     })
     test('Happy path', async () => {
         const result = await aggregator.aggregate(data, opts);
+        console.log(result);
         expect(result.task).toBe('Study');
         expect(result.assignee.id).toBe('A');
         expect(result.assignee.name).toBe('Andy');
+        expect(result.childTask.task).toBe('Code');
         // Make sure the id key is removed
         expect(Object.keys(result)).not.toContain('assigneeId');
         expect(Object.keys(result)).not.toContain('taskId');
+        expect(Object.keys(result)).not.toContain('childTaskId');
     });
 
     test('Enum as source key should work as usual', async () => {

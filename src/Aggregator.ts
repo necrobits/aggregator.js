@@ -64,7 +64,6 @@ export class Aggregator<TSourceKey extends string = string> {
         const pathToEnrichmentConfigMap: { [path: string]: SingleEnrichmentConfig<TSourceKey>[] } = {};
 
         const sortedPaths = _.sortBy(Object.keys(options), (path) => path.split(".").length);
-
         // Scan through all the options and the data to find the IDs to be gathered
         for (const path of sortedPaths) {
             const pathOption = options[path];
@@ -76,11 +75,10 @@ export class Aggregator<TSourceKey extends string = string> {
             }
 
             // Collect the IDs to be gathered and add them to the existing IDs list
-            const existingIds = _.get(sourceToIds, sourceName, []);
+            const existingIds = sourceToIds.get(sourceName) || [];
             const collectedPathDescriptors = collectPathsAndValues(data, realPath);
             const collectedIds = _.uniq(_.map(collectedPathDescriptors, "value"));
             sourceToIds.set(sourceName, _.uniq([...existingIds, ...collectedIds]));
-
             // Define the replacement and its path in the data,
             //  so that it can be replaced later
             for (const pathDescriptor of collectedPathDescriptors) {
