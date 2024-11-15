@@ -1,6 +1,6 @@
 export interface EntitySource<T = any, TResult = T> {
     prepare(ids: string[]): Promise<void>;
-    get(id: string): Promise<TResult>;
+    get(id: string): Promise<TResult | null>;
 }
 
 export enum AggregationMode {

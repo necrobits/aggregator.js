@@ -5,7 +5,7 @@ export interface EntityCache<T = any> {
      * Get the cached object for the given key
      * @param key The key to look up
      */
-    get(key: string): Promise<T>;
+    get(key: string): Promise<T | null>;
 
     /**
      * Put multiple objects to the cache.
@@ -68,7 +68,7 @@ export type CachedEntitySourceOpts<T = any, TResult = T> = {
  * The cache instance must implement the EntityCache interface,
  *  so you can implement an Adapter for any kind of cache you prefer to use.
  */
-export class CachedEntitySource<T, TResult = T> implements EntitySource<T, TResult> {
+export class CachedEntitySource<T, TResult = T | null> implements EntitySource<T, TResult> {
     private cache: EntityCache<TResult>;
     private name: string;
     private lookupFunc: EntityLookupFunction<T>;
@@ -101,7 +101,7 @@ export class CachedEntitySource<T, TResult = T> implements EntitySource<T, TResu
         );
     }
 
-    async get(id: string): Promise<TResult> {
+    async get(id: string): Promise<TResult | null> {
         const entityFromCache = await this.cache.get(this.cacheKeyUsing(id));
         return entityFromCache;
     }
