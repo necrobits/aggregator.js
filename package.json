@@ -1,6 +1,6 @@
 {
     "name": "@necrobits/aggregator",
-    "version": "0.2.8",
+    "version": "0.2.9",
     "description": "Typescript/Javascript aggregator component",
     "main": "./lib/cjs/index.js",
     "module": "./lib/esm/index.js",
